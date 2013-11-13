@@ -1,46 +1,57 @@
 require 'gosu'
 require 'awesome_print'
 require_relative 'player'
+require_relative 'game_object'
+require_relative 'controls'
 require_relative 'shoot'
 require_relative 'queue'
+require_relative 'game_logic'
 
 class Game < Gosu::Window
   WINDOW_SIZE = [800, 600]
+  #WINDOW_SIZE = [1920, 1080]
   CAPTION = 'Gosu rocks'
   IMAGES_DIR = 'images'
   BACKGROUND = 'background.jpg'
 
-  USE_QUEUE = true
+  USE_QUEUE = false
 
   def initialize
-    super(WINDOW_SIZE[0], WINDOW_SIZE[1], false, 33.7777)
+    super(WINDOW_SIZE[0], WINDOW_SIZE[1], true)
+    #super(WINDOW_SIZE[0], WINDOW_SIZE[1], true, 33.7777)
     self.caption = CAPTION
 
-    @bg = Gosu::Image.new self, IMAGES_DIR+'/'+BACKGROUND, true
-    @p1 = Player.new self, 0, 0, 2, 'p1'
-    @p2 = Player.new self, 200, 200, 1, 'p2'
-
-    Queue.init(@p1)
-    Queue.init(@p2)
-
-    @i1 = Gosu::Image.new self, IMAGES_DIR+'/'+'t1.png', true
-    @i2 = Gosu::Image.new self, IMAGES_DIR+'/'+'t2.png', true
-
-    @font = Gosu::Font.new(self, Gosu::default_font_name, 30)
-
-    #50.times { Queue.queue[@p1.id] << 'go_left' }
-    #50.times { Queue.queue[@p1.id] << 'go_down' }
-    #Queue.queue[@p1.id] << 'shoot'
-    #50.times { Queue.queue[@p1.id] << 'go_right' }
-    #Queue.queue[@p1.id] << 'stop_moving'
-    #
-    #30.times { Queue.queue[@p2.id] << 'go_down' }
-    #50.times { Queue.queue[@p2.id] << 'go_left' }
-    #Queue.queue[@p2.id] << 'shoot'
-    #70.times { Queue.queue[@p2.id] << 'go_up'}
-    #Queue.queue[@p2.id] << 'stop_moving'
+    init_map
+    init_players
+    init_static_objects
+    init_interactive_objects
 
     #init_queue_from_file 'data.csv'
+  end
+
+  def init_map
+    @bg   = Gosu::Image.new self, IMAGES_DIR+'/'+BACKGROUND, true
+    @font = Gosu::Font.new(self, Gosu::default_font_name, 30)
+  end
+
+  def init_interactive_objects
+    InteractiveObjects.all << KolodecObject.new(self, :kolodec, 350, 300)
+  end
+
+  def init_static_objects
+    StaticObject.new self, :tree, 100, 100
+    StaticObject.new self, :tree, 37, 410
+    StaticObject.new self, :tree, 607, 210
+    StaticObject.new self, :el,   412, 510
+    StaticObject.new self, :chuchelo, 250, 260
+    StaticObject.new self, :old_tree, 450, 15
+
+    40.times { StaticObject.new self, :small, Random.rand(self.width), Random.rand(self.height) }
+  end
+
+  def init_players
+    @p1 = Player.new self, 220, 220, 2, 'p1'
+    @p2 = Player.new self, 400, 400, 1, 'p2'
   end
 
   def init_queue_from_file file
@@ -53,42 +64,23 @@ class Game < Gosu::Window
   end
 
   def update
-    if button_down? Gosu::KbLeft
-      if USE_QUEUE
-        Queue.queue[@p1.id] << 'go_left'
-      else
-        @p1.go_left
-      end
-    elsif button_down? Gosu::KbRight
-      if USE_QUEUE
-        Queue.queue[@p1.id] << 'go_right'
-      else
-        @p1.go_right
-      end
-    elsif button_down? Gosu::KbUp
-      if USE_QUEUE
-        Queue.queue[@p1.id] << 'go_up'
-      else
-        @p1.go_up
-      end
-    elsif button_down? Gosu::KbDown
-      if USE_QUEUE
-        Queue.queue[@p1.id] << 'go_down'
-      else
-        @p1.go_down
-      end
-    else
-      if USE_QUEUE
-        #Queue.queue[@p1.id] << 'stop_moving'
-      else
-        #@p1.stop_moving
+    Player.all.each_with_index do |player, num|
+      controls = Controls[num]
+      pressed = controls.find { |key, action| button_down? key }
+      if pressed
+        action = pressed[1]
+
+        if USE_QUEUE
+          Queue.queue[player.id] << action
+        else
+          player.send(action)
+        end
       end
     end
 
+    InteractiveObjects.all.each(&:action)
     Queue.process
-
-    @p1.shoots.each(&:action)
-    @p2.shoots.each(&:action)
+    GameLogic.interaction
 
     #@i += 1
     #puts @i if @i % 50 == 0
@@ -96,11 +88,15 @@ class Game < Gosu::Window
 
   def draw
     draw_background
-    @p1.draw
-    @p2.draw
+
+    Player.all.each(&:draw)
+    InteractiveObjects.all.each(&:draw)
+    StaticObject.all.each(&:draw)
 
     @font.draw("health: #{@p1.health}", 5, 5, 2, 1.0, 1.0, 0xffffff00)
-    @font.draw("ammo: #{@p1.ammo}", 200, 5, 2, 1.0, 1.0, 0xffffff00)
+    @font.draw("health: #{@p2.health}", 440, 5, 2, 1.0, 1.0, 0xffffff00)
+    @font.draw("ammo: #{@p1.ammo}", 140, 5, 2, 1.0, 1.0, 0xffffff00)
+    @font.draw("ammo: #{@p2.ammo}", 580, 5, 2, 1.0, 1.0, 0xffffff00)
   end
 
   def draw_background
@@ -112,22 +108,30 @@ class Game < Gosu::Window
       need_to_repeat_horiz.times { |h| @bg.draw(h * @bg.width, top_shift, 0) }
     end
 
-    @i1.draw(100, 150, 2)
-    @i1.draw(700, 350, 2)
-    @i2.draw(300, 735, 2)
-    @i2.draw(800, 73, 2)
+
   end
 
   def button_down(id)
     case id
     when Gosu::KbQ
       close
-    when Gosu::KbSpace
-      Queue.queue[@p1.id] << 'shoot'
-      #@p1.shoot
     end
-  end
 
+    Player.all.each_with_index do |player, num|
+      controls = Controls.one_press[num]
+      pressed = controls.find { |key, action| key == id }
+      if pressed
+        action = pressed[1]
+
+        if USE_QUEUE
+          Queue.queue[player.id] << action
+        else
+          player.send(action)
+        end
+      end
+    end
+
+  end
 end
 
 Game.new.show

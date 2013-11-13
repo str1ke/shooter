@@ -14,9 +14,11 @@ class Queue
     def process
       @objects.each do |key, object|
         if @queue[object.id].length != 0
-          puts @queue[object.id]
-          action = @queue[object.id].shift
-          object.send("#{action}") if action
+          #puts @queue[object.id].length
+          begin
+            action = @queue[object.id].shift
+            object.send("#{action}") if action
+          end while action == "shoot"
         end
       end
     end
