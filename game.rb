@@ -1,6 +1,7 @@
 require 'gosu'
 require 'awesome_print'
 require_relative 'player'
+require_relative 'sound'
 require_relative 'game_object'
 require_relative 'controls'
 require_relative 'shoot'
@@ -8,8 +9,8 @@ require_relative 'queue'
 require_relative 'game_logic'
 
 class Game < Gosu::Window
-  WINDOW_SIZE = [800, 600]
-  #WINDOW_SIZE = [1920, 1080]
+  #WINDOW_SIZE = [800, 600]
+  WINDOW_SIZE = [1920, 1080]
   CAPTION = 'Gosu rocks'
   IMAGES_DIR = 'images'
   BACKGROUND = 'background.jpg'
@@ -21,37 +22,46 @@ class Game < Gosu::Window
     #super(WINDOW_SIZE[0], WINDOW_SIZE[1], true, 33.7777)
     self.caption = CAPTION
 
+    Sound.music self
+
     init_map
     init_players
     init_static_objects
     init_interactive_objects
+    self.class.win = self
 
     #init_queue_from_file 'data.csv'
   end
 
+  class << self
+    attr_accessor :win
+  end
+
   def init_map
     @bg   = Gosu::Image.new self, IMAGES_DIR+'/'+BACKGROUND, true
-    @font = Gosu::Font.new(self, Gosu::default_font_name, 30)
+    @font = Gosu::Font.new  self, Gosu::default_font_name, 30
   end
 
   def init_interactive_objects
-    InteractiveObjects.all << KolodecObject.new(self, :kolodec, 350, 300)
+    InteractiveObjects.all << KolodecObject.new(self, :kolodec, self.width/2-50, self.height/2)
   end
 
   def init_static_objects
-    StaticObject.new self, :tree, 100, 100
-    StaticObject.new self, :tree, 37, 410
-    StaticObject.new self, :tree, 607, 210
-    StaticObject.new self, :el,   412, 510
-    StaticObject.new self, :chuchelo, 250, 260
-    StaticObject.new self, :old_tree, 450, 15
+    walls = [:tree, :el, :chuchelo, :old_tree]
+    #StaticObject.new self, :tree, 100, 100
+    #StaticObject.new self, :tree, 37, 410
+    #StaticObject.new self, :tree, 607, 210
+    #StaticObject.new self, :el,   412, 510
+    #StaticObject.new self, :chuchelo, 250, 260
+    #StaticObject.new self, :old_tree, 450, 15
 
+    70.times { StaticObject.new self, walls.sample, Random.rand(self.width), Random.rand(self.height) }
     40.times { StaticObject.new self, :small, Random.rand(self.width), Random.rand(self.height) }
   end
 
   def init_players
-    @p1 = Player.new self, 220, 220, 2, 'p1'
-    @p2 = Player.new self, 400, 400, 1, 'p2'
+    @p1 = Player.new self, self.width*0.2, self.height*0.5, 2, 'p1'
+    @p2 = Player.new self, self.width*0.8, self.height*0.5, 1, 'p2'
   end
 
   def init_queue_from_file file
@@ -64,6 +74,8 @@ class Game < Gosu::Window
   end
 
   def update
+
+
     Player.all.each_with_index do |player, num|
       controls = Controls[num]
       pressed = controls.find { |key, action| button_down? key }

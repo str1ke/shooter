@@ -100,12 +100,20 @@ class Player
   def shoot
     return unless can_shoot?
 
+    Sound.play(:shoot)
     self.ammo -= 1
     Fireball.new(@win, @state, x, y, self)
   end
 
   def reload
+    return unless can_reload?
+
     self.ammo = 10
+    Sound.play :reload
+  end
+
+  def can_reload?
+    ammo < 10
   end
 
   def can_shoot?
@@ -113,10 +121,11 @@ class Player
   end
 
   def hit
+    return if dead?
     self.health -= 1
-    if dead?
+    Sound.play(:hit)
 
-    end
+    Sound.play(:kill) if dead?
   end
 
   def dead?

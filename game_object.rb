@@ -22,6 +22,18 @@ class GameObject
     small_5:     [192, 494, 14, 14]
   }
 
+  WALLS = [
+    :vert_lavka,
+    :vert_brevno,
+    :krest1,
+    :krest2,
+    :tree,
+    :tree_c,
+    :el_c,
+    :el,
+    :old_tree
+  ]
+
   class << self
     def image_for(win, object)
       object = "small_#{Random.rand(6)}".to_sym if object == :small
@@ -54,7 +66,7 @@ class GameObject
   end
 
   def wall?
-    [SPRITES_COORD.keys - SPRITES_COORD.keys.grep(/small/)].flatten.include? type
+    WALLS.include? type
   end
 end
 
